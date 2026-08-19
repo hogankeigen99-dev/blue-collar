@@ -1,0 +1,166 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+function str(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+}
+
+export async function createEstimate(formData: FormData) {
+  const user = await requireUser();
+  const title = str(formData, "title");
+  if (!title) throw new Error("Title is required");
+
+  const estimate = await prisma.estimate.create({
+    data: {
+      organizationId: user.organizationId,
+      title,
+      customerId: str(formData, "customerId"),
+      leadId: str(formData, "leadId"),
+      notes: str(formData, "notes"),
+    },
+  });
+
+  await logActivity({
+    organizationId: user.organizationId,
+    actorUserId: user.id,
+    action: "estimate.created",
+    summary: `${user.name} created estimate "${estimate.title}"`,
+  });
+
+  revalidatePath("/estimates");
+  redirect(`/estimates/${estimate.id}`);
+}
+
+export async function createEstimateFromLead(leadId: string) {
+  const user = await requireUser();
+  const lead = await prisma.lead.findFirst({
+    where: { id: leadId, organizationId: user.organizationId },
+  });
+  if (!lead) throw new Error("Lead not found");
+
+  const estimate = await prisma.estimate.create({
+    data: {
+      organizationId: user.organizationId,
+      leadId: lead.id,
+      customerId: lead.customerId,
+      title: `Estimate for ${lead.name}`,
+    },
+  });
+
+  await logActivity({
+    organizationId: user.organizationId,
+    actorUserId: user.id,
+    action: "estimate.created",
+    summary: `${user.name} created an estimate from lead "${lead.name}"`,
+  });
+
+  revalidatePath(`/leads/${leadId}`);
+  redirect(`/estimates/${estimate.id}`);
+}
+
+export async function addLineItem(estimateId: string, formData: FormData) {
+  const user = await requireUser();
+  const estimate = await prisma.estimate.findFirst({
+    where: { id: estimateId, organizationId: user.organizationId },
+  });
+  if (!estimate) throw new Error("Estimate not found");
+
+  const description = str(formData, "description");
+  if (!description) throw new Error("Description is required");
+  const quantity = Number(formData.get("quantity") || 1);
+  const unitPrice = Number(formData.get("unitPrice") || 0);
+
+  const lastItem = await prisma.estimateLineItem.findFirst({
+    where: { estimateId },
+    orderBy: { position: "desc" },
+  });
+
+  await prisma.estimateLineItem.create({
+    data: {
+      estimateId,
+      description,
+      quantity,
+      unitPrice,
+      position: (lastItem?.position ?? 0) + 1,
+    },
+  });
+
+  revalidatePath(`/estimates/${estimateId}`);
+}
+
+export async function removeLineItem(estimateId: string, lineItemId: string) {
+  const user = await requireUser();
+  const estimate = await prisma.estimate.findFirst({
+    where: { id: estimateId, organizationId: user.organizationId },
+  });
+  if (!estimate) throw new Error("Estimate not found");
+
+  await prisma.estimateLineItem.delete({ where: { id: lineItemId } });
+  revalidatePath(`/estimates/${estimateId}`);
+}
+
+export async function updateEstimateStatus(estimateId: string, formData: FormData) {
+  const user = await requireUser();
+  const status = formData.get("status");
+  if (typeof status !== "string") return;
+
+  const estimate = await prisma.estimate.findFirst({
+    where: { id: estimateId, organizationId: user.organizationId },
+  });
+  if (!estimate) throw new Error("Estimate not found");
+
+  await prisma.estimate.update({ where: { id: estimateId }, data: { status: status as never } });
+
+  await logActivity({
+    organizationId: user.organizationId,
+    actorUserId: user.id,
+    action: "estimate.status_changed",
+    summary: `${user.name} changed estimate "${estimate.title}" from ${estimate.status} to ${status}`,
+  });
+
+  revalidatePath(`/estimates/${estimateId}`);
+  revalidatePath("/estimates");
+}
+
+export async function convertEstimateToProject(estimateId: string) {
+  const user = await requireUser();
+  const estimate = await prisma.estimate.findFirst({
+    where: { id: estimateId, organizationId: user.organizationId },
+  });
+  if (!estimate) throw new Error("Estimate not found");
+  if (estimate.status !== "APPROVED") throw new Error("Only approved estimates can convert to a project");
+  if (estimate.projectId) throw new Error("This estimate has already been converted");
+
+  const project = await prisma.project.create({
+    data: {
+      organizationId: user.organizationId,
+      title: estimate.title,
+      description: estimate.notes,
+      customerId: estimate.customerId,
+      createdByUserId: user.id,
+    },
+  });
+
+  await prisma.estimate.update({ where: { id: estimateId }, data: { projectId: project.id } });
+
+  if (estimate.leadId) {
+    await prisma.lead.update({ where: { id: estimate.leadId }, data: { status: "WON" } });
+  }
+
+  await logActivity({
+    organizationId: user.organizationId,
+    projectId: project.id,
+    actorUserId: user.id,
+    action: "estimate.converted",
+    summary: `${user.name} converted estimate "${estimate.title}" into a project`,
+  });
+
+  revalidatePath(`/estimates/${estimateId}`);
+  redirect(`/projects/${project.id}`);
+}

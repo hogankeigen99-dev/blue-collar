@@ -1,17 +1,17 @@
-import { createCustomer } from "@/lib/actions/customers";
+import { createLead } from "@/lib/actions/leads";
 
-export default function NewCustomerPage() {
+export default function NewLeadPage() {
   return (
     <div className="max-w-xl space-y-6">
-      <h1 className="text-2xl font-semibold">Add customer</h1>
-      <form action={createCustomer} className="space-y-4 bg-white border rounded-lg p-6">
+      <h1 className="text-2xl font-semibold">New lead</h1>
+      <form action={createLead} className="space-y-4 bg-white border rounded-lg p-6">
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">Lead / company name *</label>
           <input name="name" required className="w-full border rounded-md px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Address</label>
-          <input name="address" className="w-full border rounded-md px-3 py-2 text-sm" />
+          <label className="block text-sm font-medium mb-1">Contact name</label>
+          <input name="contactName" className="w-full border rounded-md px-3 py-2 text-sm" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Phone</label>
@@ -22,6 +22,10 @@ export default function NewCustomerPage() {
           <input name="email" type="email" className="w-full border rounded-md px-3 py-2 text-sm" />
         </div>
         <div>
+          <label className="block text-sm font-medium mb-1">Source</label>
+          <input name="source" placeholder="e.g. Referral, Google" className="w-full border rounded-md px-3 py-2 text-sm" />
+        </div>
+        <div>
           <label className="block text-sm font-medium mb-1">Notes</label>
           <textarea name="notes" rows={3} className="w-full border rounded-md px-3 py-2 text-sm" />
         </div>
@@ -29,7 +33,7 @@ export default function NewCustomerPage() {
           type="submit"
           className="bg-slate-900 text-white text-sm px-4 py-2 rounded-md hover:bg-slate-700"
         >
-          Add customer
+          Add lead
         </button>
       </form>
     </div>

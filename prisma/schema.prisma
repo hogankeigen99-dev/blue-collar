@@ -7,55 +7,252 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum JobStatus {
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  TECHNICIAN
+}
+
+enum ProjectStatus {
   SCHEDULED
   IN_PROGRESS
+  ON_HOLD
   COMPLETED
   CANCELLED
 }
 
-model Worker {
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum ProjectMemberRole {
+  LEAD
+  MEMBER
+}
+
+enum AttachmentKind {
+  PHOTO
+  DOCUMENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+  WON
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+}
+
+model Organization {
   id        String   @id @default(cuid())
   name      String
-  role      String?
-  phone     String?
-  email     String?
-  active    Boolean  @default(true)
+  slug      String   @unique
   createdAt DateTime @default(now())
-  jobs      JobAssignment[]
+
+  users      User[]
+  customers  Customer[]
+  projects   Project[]
+  leads      Lead[]
+  estimates  Estimate[]
+  activities ActivityLog[]
+  schedules  ScheduleEntry[]
+  attachments Attachment[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  email          String   @unique
+  passwordHash   String
+  name           String
+  role           Role     @default(TECHNICIAN)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  sessions          Session[]
+  projectMemberships ProjectMember[]
+  assignedTasks     Task[]           @relation("TaskAssignee")
+  activities        ActivityLog[]    @relation("ActivityActor")
+  uploadedFiles     Attachment[]     @relation("AttachmentUploader")
+  scheduleEntries   ScheduleEntry[]  @relation("ScheduleTechnician")
+  createdProjects   Project[]        @relation("ProjectCreatedBy")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  notes     String?
-  createdAt DateTime @default(now())
-  jobs      Job[]
+  id             String   @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  projects  Project[]
+  leads     Lead[]
+  estimates Estimate[]
 }
 
-model Job {
-  id           String          @id @default(cuid())
-  title        String
-  description  String?
-  status       JobStatus       @default(SCHEDULED)
-  address      String?
-  scheduledAt  DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  customer     Customer?       @relation(fields: [customerId], references: [id])
-  customerId   String?
-  assignments  JobAssignment[]
+model Project {
+  id             String        @id @default(cuid())
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organizationId String
+  title          String
+  description    String?
+  status         ProjectStatus @default(SCHEDULED)
+  address        String?
+  scheduledAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  customerId     String?
+  createdBy      User?         @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id])
+  createdByUserId String?
+
+  members     ProjectMember[]
+  tasks       Task[]
+  activities  ActivityLog[]
+  attachments Attachment[]
+  schedules   ScheduleEntry[]
+  estimate    Estimate?
 }
 
-model JobAssignment {
-  id       String @id @default(cuid())
-  job      Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId    String
-  worker   Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  workerId String
+model ProjectMember {
+  id        String            @id @default(cuid())
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      ProjectMemberRole @default(MEMBER)
+  addedAt   DateTime          @default(now())
 
-  @@unique([jobId, workerId])
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+  assigneeUserId String?
+  dueDate     DateTime?
+  position    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String?
+  actor          User?        @relation("ActivityActor", fields: [actorUserId], references: [id])
+  actorUserId    String?
+  action         String
+  summary        String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+}
+
+model Attachment {
+  id             String         @id @default(cuid())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organizationId String
+  project        Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String?
+  uploadedBy     User?          @relation("AttachmentUploader", fields: [uploadedByUserId], references: [id])
+  uploadedByUserId String?
+  filename       String
+  storagePath    String
+  contentType    String
+  size           Int
+  kind           AttachmentKind @default(DOCUMENT)
+  createdAt      DateTime       @default(now())
+}
+
+model ScheduleEntry {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  technician     User         @relation("ScheduleTechnician", fields: [userId], references: [id])
+  userId         String
+  startAt        DateTime
+  endAt          DateTime
+  notes          String?
+  createdAt      DateTime     @default(now())
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name           String
+  contactName    String?
+  phone          String?
+  email          String?
+  source         String?
+  status         LeadStatus   @default(NEW)
+  notes          String?
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+  customerId     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  estimates Estimate[]
+}
+
+model Estimate {
+  id             String         @id @default(cuid())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organizationId String
+  lead           Lead?          @relation(fields: [leadId], references: [id])
+  leadId         String?
+  customer       Customer?      @relation(fields: [customerId], references: [id])
+  customerId     String?
+  title          String
+  notes          String?
+  status         EstimateStatus @default(DRAFT)
+  project        Project?       @relation(fields: [projectId], references: [id])
+  projectId      String?        @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  lineItems EstimateLineItem[]
+}
+
+model EstimateLineItem {
+  id          String   @id @default(cuid())
+  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  estimateId  String
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal  @default(0) @db.Decimal(10, 2)
+  position    Int      @default(0)
 }

@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const customers = await prisma.customer.findMany({ orderBy: { name: "asc" } });
+  const user = await requireUser();
+  const customers = await prisma.customer.findMany({
+    where: { organizationId: user.organizationId },
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="space-y-6">
