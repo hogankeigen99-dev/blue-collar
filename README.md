@@ -26,8 +26,8 @@ projects, crews, and scheduling in one place.
 - **Activity log**: every key action (status changes, assignments, uploads,
   conversions, ...) is recorded per-project and in an org-wide feed
   (`/activity`, admin+)
-- **Photos & documents**: upload files to a project; stored on local disk
-  under `public/uploads/{orgId}/{projectId}/` — see note below
+- **Photos & documents**: upload files to a project; stored in a private
+  Cloudflare R2 bucket, served via short-lived signed URLs (`lib/storage.ts`)
 - **Scheduling**: assign technicians to projects for a time window, viewable
   org-wide (`/schedule`) or per-project
 - **Field view** (`/field`): a technician's simplified view of today's
@@ -38,9 +38,6 @@ projects, crews, and scheduling in one place.
 
 ### Known limitations / next steps
 
-- File uploads write to local disk, which is **ephemeral on Railway** (wiped
-  on redeploy/restart). Swap `lib/actions/attachments.ts` for an S3/R2-backed
-  driver before relying on this in production.
 - No email delivery: new users get a password set directly by an admin, and
   there's no password-reset flow yet.
 - No drag-and-drop calendar or Kanban reordering — schedule and task lists are
@@ -48,11 +45,12 @@ projects, crews, and scheduling in one place.
 
 ## Local development
 
-Requires Node 20+ and a PostgreSQL database.
+Requires Node 20+, a PostgreSQL database, and a Cloudflare R2 bucket (photo/
+document uploads fail without one — see `.env.example`).
 
 ```bash
 npm install
-cp .env.example .env   # set DATABASE_URL to your local Postgres
+cp .env.example .env   # set DATABASE_URL and the R2_* vars
 npm run db:migrate     # applies migrations, creates the schema
 npm run db:seed        # optional: seeds an org, users, and sample data
 npm run dev
@@ -69,6 +67,9 @@ App runs at http://localhost:3000. After seeding, sign in at `/login` with
 2. Add a **PostgreSQL** plugin to the project — Railway sets `DATABASE_URL`
    automatically for services in the same project (reference it as
    `${{Postgres.DATABASE_URL}}` on the app service if not linked automatically).
+2b. Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and
+   `R2_BUCKET_NAME` on the app service (see `.env.example`) — required for
+   photo/document uploads.
 3. Railway auto-detects the build/start commands from `railway.json`:
    - Build: `npm run build` (runs `prisma generate` then `next build`)
    - Deploy: `npm run db:deploy && npm start` (applies pending migrations, then starts the server)
@@ -91,6 +92,7 @@ app/                        Next.js App Router pages
   field/                     Technician field view
 lib/prisma.ts                Shared Prisma client
 lib/auth.ts                  Sessions, password hashing, role checks
+lib/storage.ts                Cloudflare R2 (S3-compatible) upload/delete/signed-URL client
 lib/activity.ts              Activity log helper
 lib/actions/                 Server Actions, one file per domain
 prisma/schema.prisma         Data model
