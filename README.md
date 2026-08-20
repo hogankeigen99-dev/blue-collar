@@ -3,6 +3,10 @@
 A multi-tenant platform for trades businesses to run leads, estimates,
 projects, crews, and scheduling in one place.
 
+New screens and significant feature work go through a spec first — see
+[`docs/PRODUCT_PROCESS.md`](docs/PRODUCT_PROCESS.md) (Figma → PRD → Issue →
+Code → QA) and the "Feature (with PRD)" issue template.
+
 ## Stack
 
 - [Next.js 16](https://nextjs.org/) (App Router, Server Actions)
@@ -106,12 +110,31 @@ document uploads fail without one — see `.env.example`).
 npm install
 cp .env.example .env   # set DATABASE_URL and the R2_* vars
 npm run db:migrate     # applies migrations, creates the schema
-npm run db:seed        # optional: seeds an org, users, and sample data
+npm run db:seed        # optional: seeds a small org, users, and sample data
 npm run dev
 ```
 
 App runs at http://localhost:3000. After seeding, sign in at `/login` with
 `owner@riverside.test` / `password123`, or start fresh at `/signup`.
+
+### Demo company (for sales demos)
+
+`npm run db:seed:demo` seeds a second, much larger organization —
+**Sterling Build & Renovate** — designed to make the dashboard look like a
+real, busy contractor rather than an empty account: 30 employees (1 owner, 1
+admin, 5 PMs, 8 sales reps, 15 field crew — all sharing the password
+`password123`), 40 customers, 18 leads with estimates in various pipeline
+stages, and 25 projects spanning every status (scheduled, in progress,
+on hold, completed, cancelled) with tasks, some deliberately overdue, and a
+populated schedule and activity feed. A handful of "won" leads are wired all
+the way through `Lead → Estimate (approved) → Project`, matching the
+platform's core pipeline. It coexists with the regular `db:seed` fixture (a
+separate organization) and refuses to run twice against the same database.
+
+Photo/document attachments are only seeded if `R2_*` env vars are set at
+seed time (skipped otherwise) — the Files tab calls R2 for every attachment
+on render with no fallback, so seeding fake storage keys without a real
+bucket would make that tab error out instead of just showing broken images.
 
 ## Deploying
 
@@ -151,6 +174,7 @@ lib/activity.ts              Activity log helper
 lib/actions/                 Server Actions, one file per domain
 prisma/schema.prisma         Data model
 prisma/seed.ts                Sample org, users, project, lead, and estimate
+prisma/seed-demo.ts           Large "Sterling Build & Renovate" demo org for sales demos
 proxy.ts                     Route protection (redirects unauthenticated requests to /login)
 railway.json                  Railway build/deploy config
 .github/workflows/            CI
