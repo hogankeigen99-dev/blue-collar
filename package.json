@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -28,6 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",

@@ -77,11 +77,17 @@ page.
 ## Testing
 
 ```bash
-npm run test   # Vitest — auth/role logic, validation schemas, rate limiter
+npm run test       # Vitest — auth/role logic, validation schemas, rate limiter
+npm run test:e2e   # Playwright — real HTTP/Server Action flows against a running app
 ```
-Covers the pure logic (role hierarchy, password hashing, zod schemas, rate
-limiting) directly; `.github/workflows/ci.yml` runs it on every push/PR
-alongside lint and build.
+Vitest covers the pure logic (role hierarchy, password hashing, zod schemas,
+rate limiting) directly. Playwright drives a real browser against a built,
+running instance (`tests-e2e/`) — signup/login, project + task creation,
+lead → estimate → approve → convert-to-project, and the invite/set-password
+flow — each against a real Postgres database. `test:e2e` requires
+`DATABASE_URL` to point at a reachable Postgres instance; it builds and
+starts the app itself (see `playwright.config.ts`). `.github/workflows/ci.yml`
+runs both suites, plus lint and build, on every push/PR.
 
 ### Known limitations / next steps
 
@@ -90,8 +96,6 @@ alongside lint and build.
   it.
 - No drag-and-drop calendar or Kanban reordering — schedule and task lists are
   plain, sorted lists.
-- No end-to-end tests exercising real HTTP/Server Action requests yet — only
-  the underlying logic is unit-tested.
 - Railway's "Wait for CI" deployment gate needs the
   [Railway GitHub App](https://github.com/apps/railway) installed on the repo
   (a one-time action only the repo owner can grant); until then, Railway
