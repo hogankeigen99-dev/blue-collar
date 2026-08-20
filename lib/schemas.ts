@@ -16,9 +16,23 @@ export const logInSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   email: z.string().trim().toLowerCase().email("Enter a valid email address").max(255),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
   role: z.enum(["OWNER", "ADMIN", "MANAGER", "TECHNICIAN"]),
 });
+
+export const requestPasswordResetSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address").max(255),
+});
+
+export const setPasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8, "Password must be at least 8 characters").max(200),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),

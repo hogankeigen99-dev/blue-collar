@@ -6,6 +6,9 @@ import {
   addLineItemSchema,
   createScheduleEntrySchema,
   createCustomerSchema,
+  createUserSchema,
+  requestPasswordResetSchema,
+  setPasswordSchema,
 } from "@/lib/schemas";
 
 describe("signUpSchema", () => {
@@ -141,5 +144,75 @@ describe("createCustomerSchema", () => {
   it("rejects an invalid email but allows omitting it", () => {
     expect(createCustomerSchema.safeParse({ name: "Acme", email: "bad" }).success).toBe(false);
     expect(createCustomerSchema.safeParse({ name: "Acme" }).success).toBe(true);
+  });
+});
+
+describe("createUserSchema", () => {
+  it("no longer requires a password (invite flow sets it)", () => {
+    const result = createUserSchema.safeParse({
+      name: "Alice",
+      email: "alice@example.com",
+      role: "TECHNICIAN",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid role", () => {
+    const result = createUserSchema.safeParse({
+      name: "Alice",
+      email: "alice@example.com",
+      role: "SUPERADMIN",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("requestPasswordResetSchema", () => {
+  it("rejects an invalid email", () => {
+    expect(requestPasswordResetSchema.safeParse({ email: "not-an-email" }).success).toBe(false);
+  });
+
+  it("accepts a valid email", () => {
+    expect(requestPasswordResetSchema.safeParse({ email: "a@b.com" }).success).toBe(true);
+  });
+});
+
+describe("setPasswordSchema", () => {
+  const base = { token: "sometoken" };
+
+  it("accepts matching passwords", () => {
+    const result = setPasswordSchema.safeParse({
+      ...base,
+      password: "password123",
+      confirmPassword: "password123",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects mismatched passwords", () => {
+    const result = setPasswordSchema.safeParse({
+      ...base,
+      password: "password123",
+      confirmPassword: "password456",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a short password", () => {
+    const result = setPasswordSchema.safeParse({
+      ...base,
+      password: "short",
+      confirmPassword: "short",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing token", () => {
+    const result = setPasswordSchema.safeParse({
+      token: "",
+      password: "password123",
+      confirmPassword: "password123",
+    });
+    expect(result.success).toBe(false);
   });
 });

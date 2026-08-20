@@ -28,6 +28,11 @@ enum TaskStatus {
   DONE
 }
 
+enum AuthTokenType {
+  INVITE
+  PASSWORD_RESET
+}
+
 enum ProjectMemberRole {
   LEAD
   MEMBER
@@ -81,12 +86,24 @@ model User {
   createdAt      DateTime @default(now())
 
   sessions          Session[]
+  authTokens        AuthToken[]
   projectMemberships ProjectMember[]
   assignedTasks     Task[]           @relation("TaskAssignee")
   activities        ActivityLog[]    @relation("ActivityActor")
   uploadedFiles     Attachment[]     @relation("AttachmentUploader")
   scheduleEntries   ScheduleEntry[]  @relation("ScheduleTechnician")
   createdProjects   Project[]        @relation("ProjectCreatedBy")
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String        @unique
+  type      AuthTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
 }
 
 model Session {
