@@ -1,25 +1,50 @@
-# Blue Collar — Crew & Job Manager
+# Blue Collar — Field Service Platform
 
-A minimal MVP for a trades business to track jobs, crew, and customers: who's
-assigned to what, where it is, and its status (scheduled / in progress /
-completed / cancelled).
+A multi-tenant platform for trades businesses to run leads, estimates,
+projects, crews, and scheduling in one place.
 
 ## Stack
 
 - [Next.js 16](https://nextjs.org/) (App Router, Server Actions)
 - [Prisma](https://www.prisma.io/) + PostgreSQL
 - Tailwind CSS
+- Custom email/password auth (bcrypt password hashing, DB-backed sessions via
+  an HTTP-only cookie) — no third-party auth provider
 
-## Features (MVP scope)
+## Features
 
-- **Jobs**: create, view, list, update status, assign one or more workers, delete
-- **Workers**: add crew members with role/contact info
-- **Customers**: add customer records with address/contact info
-- **Dashboard**: job counts by status, upcoming/recent jobs
+- **Organizations**: every account belongs to an organization (tenant); all
+  data is scoped to it
+- **Auth**: sign up creates an organization + its first `OWNER` user; sign in
+  / sign out
+- **Users & roles**: `OWNER > ADMIN > MANAGER > TECHNICIAN` hierarchy. Admins+
+  add users and set an initial password (no email invite flow yet)
+- **Projects**: a command center per project — Overview, Tasks, Team,
+  Schedule, Files, and Activity tabs
+- **Tasks**: per-project to-dos with an assignee, due date, and status
+- **Team assignments**: assign org users to a project as `LEAD` or `MEMBER`
+- **Activity log**: every key action (status changes, assignments, uploads,
+  conversions, ...) is recorded per-project and in an org-wide feed
+  (`/activity`, admin+)
+- **Photos & documents**: upload files to a project; stored on local disk
+  under `public/uploads/{orgId}/{projectId}/` — see note below
+- **Scheduling**: assign technicians to projects for a time window, viewable
+  org-wide (`/schedule`) or per-project
+- **Field view** (`/field`): a technician's simplified view of today's
+  schedule and their open tasks, with one-tap status updates
+- **Leads**: a simple pipeline (`NEW → CONTACTED → QUALIFIED → WON/LOST`)
+- **Estimates**: line items, status flow (`DRAFT → SENT → APPROVED/REJECTED`),
+  and a one-click **convert to project** once approved
 
-Not in scope for this MVP: authentication, invoicing/payments, scheduling
-calendar, notifications. These are natural next steps once the core data
-model is validated.
+### Known limitations / next steps
+
+- File uploads write to local disk, which is **ephemeral on Railway** (wiped
+  on redeploy/restart). Swap `lib/actions/attachments.ts` for an S3/R2-backed
+  driver before relying on this in production.
+- No email delivery: new users get a password set directly by an admin, and
+  there's no password-reset flow yet.
+- No drag-and-drop calendar or Kanban reordering — schedule and task lists are
+  plain, sorted lists.
 
 ## Local development
 
@@ -29,11 +54,12 @@ Requires Node 20+ and a PostgreSQL database.
 npm install
 cp .env.example .env   # set DATABASE_URL to your local Postgres
 npm run db:migrate     # applies migrations, creates the schema
-npm run db:seed        # optional: adds sample workers/customers/jobs
+npm run db:seed        # optional: seeds an org, users, and sample data
 npm run dev
 ```
 
-App runs at http://localhost:3000.
+App runs at http://localhost:3000. After seeding, sign in at `/login` with
+`owner@riverside.test` / `password123`, or start fresh at `/signup`.
 
 ## Deploying
 
@@ -58,11 +84,18 @@ App runs at http://localhost:3000.
 ## Project structure
 
 ```
-app/                  Next.js App Router pages (dashboard, jobs, workers, customers)
-lib/prisma.ts         Shared Prisma client
-lib/actions.ts        Server Actions (create/update/delete for jobs/workers/customers)
-prisma/schema.prisma  Data model
-prisma/seed.ts        Sample data
-railway.json          Railway build/deploy config
-.github/workflows/    CI
+app/                        Next.js App Router pages
+  projects/[id]/             Project command center (tasks, team, schedule, files, activity tabs)
+  leads/, estimates/         Lead pipeline and estimate → project conversion
+  users/, activity/          Admin-only user management and org-wide activity feed
+  field/                     Technician field view
+lib/prisma.ts                Shared Prisma client
+lib/auth.ts                  Sessions, password hashing, role checks
+lib/activity.ts              Activity log helper
+lib/actions/                 Server Actions, one file per domain
+prisma/schema.prisma         Data model
+prisma/seed.ts                Sample org, users, project, lead, and estimate
+proxy.ts                     Route protection (redirects unauthenticated requests to /login)
+railway.json                  Railway build/deploy config
+.github/workflows/            CI
 ```

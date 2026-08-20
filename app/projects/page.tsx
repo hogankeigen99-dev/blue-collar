@@ -1,53 +1,57 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: "Scheduled",
   IN_PROGRESS: "In progress",
+  ON_HOLD: "On hold",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };
 
-export default async function JobsPage() {
-  const jobs = await prisma.job.findMany({
+export default async function ProjectsPage() {
+  const user = await requireUser();
+  const projects = await prisma.project.findMany({
+    where: { organizationId: user.organizationId },
     orderBy: { createdAt: "desc" },
-    include: { customer: true, assignments: { include: { worker: true } } },
+    include: { customer: true, members: { include: { user: true } } },
   });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Jobs</h1>
+        <h1 className="text-2xl font-semibold">Projects</h1>
         <Link
-          href="/jobs/new"
+          href="/projects/new"
           className="bg-slate-900 text-white text-sm px-4 py-2 rounded-md hover:bg-slate-700"
         >
-          + New job
+          + New project
         </Link>
       </div>
 
-      {jobs.length === 0 ? (
-        <p className="text-slate-500 text-sm">No jobs yet.</p>
+      {projects.length === 0 ? (
+        <p className="text-slate-500 text-sm">No projects yet.</p>
       ) : (
         <div className="bg-white border rounded-lg divide-y">
-          {jobs.map((job) => (
+          {projects.map((project) => (
             <Link
-              key={job.id}
-              href={`/jobs/${job.id}`}
+              key={project.id}
+              href={`/projects/${project.id}`}
               className="flex items-center justify-between px-4 py-3 hover:bg-slate-50"
             >
               <div>
-                <div className="font-medium">{job.title}</div>
+                <div className="font-medium">{project.title}</div>
                 <div className="text-sm text-slate-500">
-                  {job.customer?.name ?? "No customer"}
-                  {job.assignments.length > 0 &&
-                    ` · ${job.assignments.map((a) => a.worker.name).join(", ")}`}
+                  {project.customer?.name ?? "No customer"}
+                  {project.members.length > 0 &&
+                    ` · ${project.members.map((m) => m.user.name).join(", ")}`}
                 </div>
               </div>
               <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                {STATUS_LABEL[job.status]}
+                {STATUS_LABEL[project.status]}
               </span>
             </Link>
           ))}
