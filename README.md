@@ -36,6 +36,32 @@ projects, crews, and scheduling in one place.
 - **Estimates**: line items, status flow (`DRAFT → SENT → APPROVED/REJECTED`),
   and a one-click **convert to project** once approved
 
+## Security & validation
+
+- Every Server Action validates its input with [zod](https://zod.dev)
+  (`lib/schemas.ts`) — no ad-hoc string parsing.
+- Login is rate-limited (5 failed attempts / 15 min, per email) — see
+  `lib/rate-limit.ts`. In-memory, per-process; swap for a shared store before
+  running multiple replicas.
+- File uploads are size-capped (10MB) and restricted to an explicit
+  MIME/extension allowlist (`lib/actions/attachments.ts`) — no SVG/HTML/JS,
+  to avoid stored-XSS via re-served uploads.
+- Every query is scoped by `organizationId` (and, for nested resources, by
+  their parent's org) to prevent cross-tenant access.
+- Security headers (`X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) are set in `next.config.mjs`.
+- `lib/env.ts` fails fast on boot if `DATABASE_URL` is missing, instead of
+  surfacing an opaque Prisma error later.
+
+## Testing
+
+```bash
+npm run test   # Vitest — auth/role logic, validation schemas, rate limiter
+```
+Covers the pure logic (role hierarchy, password hashing, zod schemas, rate
+limiting) directly; `.github/workflows/ci.yml` runs it on every push/PR
+alongside lint and build.
+
 ### Known limitations / next steps
 
 - File uploads write to local disk, which is **ephemeral on Railway** (wiped
@@ -45,6 +71,12 @@ projects, crews, and scheduling in one place.
   there's no password-reset flow yet.
 - No drag-and-drop calendar or Kanban reordering — schedule and task lists are
   plain, sorted lists.
+- No end-to-end tests exercising real HTTP/Server Action requests yet — only
+  the underlying logic is unit-tested.
+- Railway's "Wait for CI" deployment gate needs the
+  [Railway GitHub App](https://github.com/apps/railway) installed on the repo
+  (a one-time action only the repo owner can grant); until then, Railway
+  deploys every push to `main` immediately rather than waiting on CI.
 
 ## Local development
 

@@ -2,7 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword, createSession, destroySession } from "@/lib/auth";
+import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/activity";
+import { signUpSchema, logInSchema } from "@/lib/schemas";
 import { redirect } from "next/navigation";
 
 function slugify(name: string): string {
@@ -18,14 +20,11 @@ function slugify(name: string): string {
 export type AuthState = { error?: string };
 
 export async function signUp(_prevState: AuthState, formData: FormData): Promise<AuthState> {
-  const orgName = String(formData.get("orgName") || "").trim();
-  const name = String(formData.get("name") || "").trim();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
-
-  if (!orgName || !name || !email || password.length < 8) {
-    return { error: "All fields are required and password must be at least 8 characters" };
+  const parsed = signUpSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
   }
+  const { orgName, name, email, password } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -67,14 +66,24 @@ export async function signUp(_prevState: AuthState, formData: FormData): Promise
 }
 
 export async function logIn(_prevState: AuthState, formData: FormData): Promise<AuthState> {
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
+  const parsed = logInSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  const { email, password } = parsed.data;
+
+  const rateLimitKey = `login:${email}`;
+  if (!checkRateLimit(rateLimitKey)) {
+    return { error: "Too many failed attempts. Try again in a few minutes." };
+  }
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) {
+    recordFailedAttempt(rateLimitKey);
     return { error: "Invalid email or password" };
   }
 
+  clearRateLimit(rateLimitKey);
   await createSession(user.id);
   redirect("/");
 }

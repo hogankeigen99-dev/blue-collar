@@ -2,28 +2,18 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseForm, parseValue } from "@/lib/validation";
+import { createEstimateSchema, addLineItemSchema, estimateStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-function str(formData: FormData, key: string): string | undefined {
-  const v = formData.get(key);
-  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
-}
-
 export async function createEstimate(formData: FormData) {
   const user = await requireUser();
-  const title = str(formData, "title");
-  if (!title) throw new Error("Title is required");
+  const data = parseForm(createEstimateSchema, formData);
 
   const estimate = await prisma.estimate.create({
-    data: {
-      organizationId: user.organizationId,
-      title,
-      customerId: str(formData, "customerId"),
-      leadId: str(formData, "leadId"),
-      notes: str(formData, "notes"),
-    },
+    data: { organizationId: user.organizationId, ...data },
   });
 
   await logActivity({
@@ -71,10 +61,7 @@ export async function addLineItem(estimateId: string, formData: FormData) {
   });
   if (!estimate) throw new Error("Estimate not found");
 
-  const description = str(formData, "description");
-  if (!description) throw new Error("Description is required");
-  const quantity = Number(formData.get("quantity") || 1);
-  const unitPrice = Number(formData.get("unitPrice") || 0);
+  const { description, quantity, unitPrice } = parseForm(addLineItemSchema, formData);
 
   const lastItem = await prisma.estimateLineItem.findFirst({
     where: { estimateId },
@@ -101,21 +88,25 @@ export async function removeLineItem(estimateId: string, lineItemId: string) {
   });
   if (!estimate) throw new Error("Estimate not found");
 
+  const lineItem = await prisma.estimateLineItem.findFirst({
+    where: { id: lineItemId, estimateId },
+  });
+  if (!lineItem) throw new Error("Line item not found");
+
   await prisma.estimateLineItem.delete({ where: { id: lineItemId } });
   revalidatePath(`/estimates/${estimateId}`);
 }
 
 export async function updateEstimateStatus(estimateId: string, formData: FormData) {
   const user = await requireUser();
-  const status = formData.get("status");
-  if (typeof status !== "string") return;
+  const status = parseValue(estimateStatusSchema, formData.get("status"));
 
   const estimate = await prisma.estimate.findFirst({
     where: { id: estimateId, organizationId: user.organizationId },
   });
   if (!estimate) throw new Error("Estimate not found");
 
-  await prisma.estimate.update({ where: { id: estimateId }, data: { status: status as never } });
+  await prisma.estimate.update({ where: { id: estimateId }, data: { status } });
 
   await logActivity({
     organizationId: user.organizationId,
