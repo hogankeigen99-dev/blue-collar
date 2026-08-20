@@ -9,6 +9,25 @@ import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
 const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
+const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
+// Extension allowlist keyed by MIME type — deliberately excludes svg/html/js
+// and any other type a browser might execute or render as markup if it were
+// ever served back with the wrong Content-Type.
+const ALLOWED_TYPES: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/heic": ".heic",
+  "application/pdf": ".pdf",
+  "application/msword": ".doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/vnd.ms-excel": ".xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "text/plain": ".txt",
+  "text/csv": ".csv",
+};
 
 export async function uploadAttachment(projectId: string, formData: FormData) {
   const user = await requireUser();
@@ -21,14 +40,20 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Choose a file to upload");
   }
-  if (file.size > 10 * 1024 * 1024) {
+  if (file.size > MAX_SIZE_BYTES) {
     throw new Error("File must be 10MB or smaller");
+  }
+
+  const ext = ALLOWED_TYPES[file.type];
+  if (!ext) {
+    throw new Error(
+      "Unsupported file type. Allowed: images (jpg, png, gif, webp, heic), PDF, Word, Excel, txt, csv."
+    );
   }
 
   const orgDir = path.join(UPLOAD_ROOT, user.organizationId, projectId);
   await mkdir(orgDir, { recursive: true });
 
-  const ext = path.extname(file.name);
   const storedName = `${randomUUID()}${ext}`;
   const diskPath = path.join(orgDir, storedName);
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -42,9 +67,9 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
       organizationId: user.organizationId,
       projectId,
       uploadedByUserId: user.id,
-      filename: file.name,
+      filename: file.name.slice(0, 255),
       storagePath: publicPath,
-      contentType: file.type || "application/octet-stream",
+      contentType: file.type,
       size: file.size,
       kind,
     },

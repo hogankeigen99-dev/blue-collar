@@ -2,30 +2,20 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireRole } from "@/lib/auth";
+import { parseForm, parseValue } from "@/lib/validation";
+import { createProjectSchema, projectStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-function str(formData: FormData, key: string): string | undefined {
-  const v = formData.get(key);
-  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
-}
-
 export async function createProject(formData: FormData) {
   const user = await requireRole("MANAGER");
-  const title = str(formData, "title");
-  if (!title) throw new Error("Title is required");
-
-  const scheduledAtRaw = str(formData, "scheduledAt");
+  const data = parseForm(createProjectSchema, formData);
 
   const project = await prisma.project.create({
     data: {
       organizationId: user.organizationId,
-      title,
-      description: str(formData, "description"),
-      address: str(formData, "address"),
-      customerId: str(formData, "customerId"),
-      scheduledAt: scheduledAtRaw ? new Date(scheduledAtRaw) : undefined,
+      ...data,
       createdByUserId: user.id,
     },
   });
@@ -45,15 +35,14 @@ export async function createProject(formData: FormData) {
 
 export async function updateProjectStatus(projectId: string, formData: FormData) {
   const user = await requireUser();
-  const status = formData.get("status");
-  if (typeof status !== "string") return;
+  const status = parseValue(projectStatusSchema, formData.get("status"));
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId: user.organizationId },
   });
   if (!project) throw new Error("Project not found");
 
-  await prisma.project.update({ where: { id: projectId }, data: { status: status as never } });
+  await prisma.project.update({ where: { id: projectId }, data: { status } });
 
   await logActivity({
     organizationId: user.organizationId,

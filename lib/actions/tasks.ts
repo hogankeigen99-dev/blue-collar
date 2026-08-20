@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseForm, parseValue } from "@/lib/validation";
+import { createTaskSchema, taskStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
@@ -14,11 +16,14 @@ async function getProjectInOrg(projectId: string, organizationId: string) {
 export async function createTask(projectId: string, formData: FormData) {
   const user = await requireUser();
   await getProjectInOrg(projectId, user.organizationId);
+  const { title, assigneeUserId, dueDate } = parseForm(createTaskSchema, formData);
 
-  const title = String(formData.get("title") || "").trim();
-  if (!title) throw new Error("Title is required");
-  const assigneeUserId = String(formData.get("assigneeUserId") || "") || undefined;
-  const dueDateRaw = String(formData.get("dueDate") || "");
+  if (assigneeUserId) {
+    const assignee = await prisma.user.findFirst({
+      where: { id: assigneeUserId, organizationId: user.organizationId },
+    });
+    if (!assignee) throw new Error("Assignee not found");
+  }
 
   const lastTask = await prisma.task.findFirst({
     where: { projectId },
@@ -30,7 +35,7 @@ export async function createTask(projectId: string, formData: FormData) {
       projectId,
       title,
       assigneeUserId,
-      dueDate: dueDateRaw ? new Date(dueDateRaw) : undefined,
+      dueDate,
       position: (lastTask?.position ?? 0) + 1,
     },
   });
@@ -48,20 +53,21 @@ export async function createTask(projectId: string, formData: FormData) {
 
 export async function updateTaskStatus(taskId: string, status: string) {
   const user = await requireUser();
+  const validStatus = parseValue(taskStatusSchema, status);
   const task = await prisma.task.findFirst({
     where: { id: taskId, project: { organizationId: user.organizationId } },
     include: { project: true },
   });
   if (!task) throw new Error("Task not found");
 
-  await prisma.task.update({ where: { id: taskId }, data: { status: status as never } });
+  await prisma.task.update({ where: { id: taskId }, data: { status: validStatus } });
 
   await logActivity({
     organizationId: user.organizationId,
     projectId: task.projectId,
     actorUserId: user.id,
     action: "task.status_changed",
-    summary: `${user.name} marked task "${task.title}" as ${status}`,
+    summary: `${user.name} marked task "${task.title}" as ${validStatus}`,
   });
 
   revalidatePath(`/projects/${task.projectId}/tasks`);

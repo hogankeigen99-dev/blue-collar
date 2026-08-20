@@ -2,31 +2,23 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseForm } from "@/lib/validation";
+import { createScheduleEntrySchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
 export async function createScheduleEntry(formData: FormData) {
   const user = await requireUser();
-
-  const projectId = String(formData.get("projectId") || "");
-  const userId = String(formData.get("userId") || "");
-  const startAtRaw = String(formData.get("startAt") || "");
-  const endAtRaw = String(formData.get("endAt") || "");
-  const notes = String(formData.get("notes") || "").trim() || undefined;
-
-  if (!projectId || !userId || !startAtRaw || !endAtRaw) {
-    throw new Error("Project, technician, start, and end are required");
-  }
+  const { projectId, userId, startAt, endAt, notes } = parseForm(
+    createScheduleEntrySchema,
+    formData
+  );
 
   const [project, technician] = await Promise.all([
     prisma.project.findFirst({ where: { id: projectId, organizationId: user.organizationId } }),
     prisma.user.findFirst({ where: { id: userId, organizationId: user.organizationId } }),
   ]);
   if (!project || !technician) throw new Error("Project or technician not found");
-
-  const startAt = new Date(startAtRaw);
-  const endAt = new Date(endAtRaw);
-  if (endAt <= startAt) throw new Error("End time must be after start time");
 
   await prisma.scheduleEntry.create({
     data: {
