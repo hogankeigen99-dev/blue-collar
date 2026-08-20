@@ -3,10 +3,19 @@ import { redirect } from "next/navigation";
 import { randomBytes, createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/constants";
-import type { Role, User } from "@prisma/client";
+import type { User } from "@prisma/client";
 
-import { ROLE_ORDER, roleAtLeast, hashPassword, verifyPassword } from "@/lib/auth-core";
-export { ROLE_ORDER, roleAtLeast, hashPassword, verifyPassword };
+import {
+  type Capability,
+  hasCapability,
+  assignableRoles,
+  ALL_ROLES,
+  ROLE_LABELS,
+  hashPassword,
+  verifyPassword,
+} from "@/lib/auth-core";
+export { hasCapability, assignableRoles, ALL_ROLES, ROLE_LABELS, hashPassword, verifyPassword };
+export type { Capability };
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -64,10 +73,10 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-export async function requireRole(min: Role): Promise<User> {
+export async function requireCapability(capability: Capability): Promise<User> {
   const user = await requireUser();
-  if (!roleAtLeast(user.role, min)) {
-    throw new Error("Forbidden: this action requires a higher role");
+  if (!hasCapability(user.role, capability)) {
+    throw new Error("Forbidden: your role does not have this permission");
   }
   return user;
 }

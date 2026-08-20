@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireRole } from "@/lib/auth";
+import { requireUser, requireCapability } from "@/lib/auth";
 import { parseForm, parseValue } from "@/lib/validation";
 import { createProjectSchema, projectStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createProject(formData: FormData) {
-  const user = await requireRole("MANAGER");
+  const user = await requireCapability("manage_projects");
   const data = parseForm(createProjectSchema, formData);
 
   const project = await prisma.project.create({
@@ -58,7 +58,7 @@ export async function updateProjectStatus(projectId: string, formData: FormData)
 }
 
 export async function deleteProject(projectId: string) {
-  const user = await requireRole("MANAGER");
+  const user = await requireCapability("manage_projects");
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId: user.organizationId },
   });

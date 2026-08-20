@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { parseForm, parseValue } from "@/lib/validation";
 import { createLeadSchema, leadStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createLead(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const data = parseForm(createLeadSchema, formData);
 
   const lead = await prisma.lead.create({
@@ -28,7 +28,7 @@ export async function createLead(formData: FormData) {
 }
 
 export async function updateLeadStatus(leadId: string, formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const status = parseValue(leadStatusSchema, formData.get("status"));
 
   const lead = await prisma.lead.findFirst({

@@ -10,8 +10,10 @@ datasource db {
 enum Role {
   OWNER
   ADMIN
-  MANAGER
-  TECHNICIAN
+  EXECUTIVE
+  SALES
+  PROJECT_MANAGER
+  FIELD_TECH
 }
 
 enum ProjectStatus {
@@ -81,7 +83,7 @@ model User {
   email          String   @unique
   passwordHash   String
   name           String
-  role           Role     @default(TECHNICIAN)
+  role           Role     @default(FIELD_TECH)
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
 

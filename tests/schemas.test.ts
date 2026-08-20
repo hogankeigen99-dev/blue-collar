@@ -152,7 +152,7 @@ describe("createUserSchema", () => {
     const result = createUserSchema.safeParse({
       name: "Alice",
       email: "alice@example.com",
-      role: "TECHNICIAN",
+      role: "FIELD_TECH",
     });
     expect(result.success).toBe(true);
   });
@@ -164,6 +164,23 @@ describe("createUserSchema", () => {
       role: "SUPERADMIN",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects the retired MANAGER/TECHNICIAN role names", () => {
+    expect(
+      createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role: "MANAGER" }).success
+    ).toBe(false);
+    expect(
+      createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role: "TECHNICIAN" }).success
+    ).toBe(false);
+  });
+
+  it("accepts every current role", () => {
+    for (const role of ["OWNER", "ADMIN", "EXECUTIVE", "SALES", "PROJECT_MANAGER", "FIELD_TECH"]) {
+      expect(
+        createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role }).success
+      ).toBe(true);
+    }
   });
 });
 

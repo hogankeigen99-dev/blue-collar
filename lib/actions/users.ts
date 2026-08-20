@@ -2,7 +2,7 @@
 
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { requireRole, hashPassword, ROLE_ORDER } from "@/lib/auth";
+import { requireCapability, hashPassword, assignableRoles } from "@/lib/auth";
 import { parseForm } from "@/lib/validation";
 import { createUserSchema } from "@/lib/schemas";
 import { createAuthToken } from "@/lib/tokens";
@@ -16,7 +16,7 @@ export async function createUser(
   _prevState: CreateUserState,
   formData: FormData
 ): Promise<CreateUserState> {
-  const actor = await requireRole("ADMIN");
+  const actor = await requireCapability("manage_users");
 
   const parsed = createUserSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
@@ -24,8 +24,8 @@ export async function createUser(
   }
   const { name, email, role } = parsed.data;
 
-  if (ROLE_ORDER.indexOf(role) > ROLE_ORDER.indexOf(actor.role)) {
-    return { error: "You cannot grant a role higher than your own" };
+  if (!assignableRoles(actor.role).includes(role)) {
+    return { error: "You cannot grant that role" };
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -62,7 +62,7 @@ export async function createUser(
 }
 
 export async function setUserActive(userId: string, active: boolean) {
-  const actor = await requireRole("ADMIN");
+  const actor = await requireCapability("manage_users");
   const target = await prisma.user.findFirst({
     where: { id: userId, organizationId: actor.organizationId },
   });

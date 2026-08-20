@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireCapability, ROLE_LABELS } from "@/lib/auth";
 import { setUserActive } from "@/lib/actions/users";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const actor = await requireRole("ADMIN");
+  const actor = await requireCapability("manage_users");
   const users = await prisma.user.findMany({
     where: { organizationId: actor.organizationId },
     orderBy: { createdAt: "asc" },
@@ -35,7 +35,7 @@ export default async function UsersPage() {
                 )}
               </div>
               <div className="text-sm text-slate-500">
-                {u.email} · <span className="uppercase text-xs">{u.role}</span>
+                {u.email} · <span className="text-xs">{ROLE_LABELS[u.role]}</span>
               </div>
             </div>
             {u.id !== actor.id && (

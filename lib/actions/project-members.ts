@@ -1,14 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { parseForm } from "@/lib/validation";
 import { addMemberSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
 export async function addProjectMember(projectId: string, formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_projects");
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId: user.organizationId },
   });
@@ -39,7 +39,7 @@ export async function addProjectMember(projectId: string, formData: FormData) {
 }
 
 export async function removeProjectMember(projectId: string, userId: string) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_projects");
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId: user.organizationId },
   });

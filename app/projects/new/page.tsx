@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { createProject } from "@/lib/actions/projects";
 
 export default async function NewProjectPage() {
-  const user = await requireRole("MANAGER");
+  const user = await requireCapability("manage_projects");
   const customers = await prisma.customer.findMany({
     where: { organizationId: user.organizationId },
     orderBy: { name: "asc" },
