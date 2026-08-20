@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/constants";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/set-password"];
+// Redirecting an already-signed-in visitor away only makes sense for
+// login/signup — a signed-in user may still legitimately reset a password
+// or accept an invite link for a different account.
+const REDIRECT_IF_SIGNED_IN = ["/login", "/signup"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -16,7 +20,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isPublic && hasSession) {
+  const redirectIfSignedIn = REDIRECT_IF_SIGNED_IN.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+  if (redirectIfSignedIn && hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

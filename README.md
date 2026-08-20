@@ -18,7 +18,8 @@ projects, crews, and scheduling in one place.
 - **Auth**: sign up creates an organization + its first `OWNER` user; sign in
   / sign out
 - **Users & roles**: `OWNER > ADMIN > MANAGER > TECHNICIAN` hierarchy. Admins+
-  add users and set an initial password (no email invite flow yet)
+  invite users by email; invitees set their own password via a signed,
+  expiring link. Self-service "forgot password" too
 - **Projects**: a command center per project — Overview, Tasks, Team,
   Schedule, Files, and Activity tabs
 - **Tasks**: per-project to-dos with an assignee, due date, and status
@@ -53,6 +54,22 @@ projects, crews, and scheduling in one place.
 - `lib/env.ts` fails fast on boot if `DATABASE_URL` is missing, instead of
   surfacing an opaque Prisma error later.
 
+## Email
+
+Invite and password-reset emails go through [Resend](https://resend.com)
+(`lib/email.ts`, a direct HTTP API call — no SDK dependency) if
+`RESEND_API_KEY` is set. Without it, the app still functions:
+
+- **Inviting a user**: `/users/new` shows the invite link on-screen after
+  creation so the admin can share it manually.
+- **Password reset**: the link is never shown in the response (that would
+  let anyone reset anyone's password) — it's logged server-side instead, for
+  an operator to retrieve.
+
+Tokens (`AuthToken` model) are single-use and expire — 7 days for invites,
+1 hour for password resets — and both flows land on the same `/set-password`
+page.
+
 ## Testing
 
 ```bash
@@ -64,8 +81,9 @@ alongside lint and build.
 
 ### Known limitations / next steps
 
-- No email delivery: new users get a password set directly by an admin, and
-  there's no password-reset flow yet.
+- Email (invites, password reset) requires `RESEND_API_KEY` to actually
+  deliver — see the "Email" section below for the fallback behavior without
+  it.
 - No drag-and-drop calendar or Kanban reordering — schedule and task lists are
   plain, sorted lists.
 - No end-to-end tests exercising real HTTP/Server Action requests yet — only

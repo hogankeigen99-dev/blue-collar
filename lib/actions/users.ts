@@ -1,38 +1,64 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireRole, hashPassword, ROLE_ORDER } from "@/lib/auth";
 import { parseForm } from "@/lib/validation";
 import { createUserSchema } from "@/lib/schemas";
+import { createAuthToken } from "@/lib/tokens";
+import { sendEmail, appUrl } from "@/lib/email";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
-export async function createUser(formData: FormData) {
+export type CreateUserState = { error?: string; inviteLink?: string };
+
+export async function createUser(
+  _prevState: CreateUserState,
+  formData: FormData
+): Promise<CreateUserState> {
   const actor = await requireRole("ADMIN");
-  const { name, email, password, role } = parseForm(createUserSchema, formData);
+
+  const parsed = createUserSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  const { name, email, role } = parsed.data;
 
   if (ROLE_ORDER.indexOf(role) > ROLE_ORDER.indexOf(actor.role)) {
-    throw new Error("You cannot grant a role higher than your own");
+    return { error: "You cannot grant a role higher than your own" };
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw new Error("A user with that email already exists");
+  if (existing) {
+    return { error: "A user with that email already exists" };
+  }
 
-  const passwordHash = await hashPassword(password);
+  // Unusable placeholder — nobody knows this plaintext, so login is
+  // impossible until the invite link is used to set a real password.
+  const passwordHash = await hashPassword(randomBytes(32).toString("hex"));
+
   const user = await prisma.user.create({
     data: { organizationId: actor.organizationId, name, email, passwordHash, role },
+  });
+
+  const token = await createAuthToken(user.id, "INVITE");
+  const inviteLink = `${appUrl()}/set-password?token=${token}`;
+
+  const { sent } = await sendEmail({
+    to: email,
+    subject: "You've been invited to Blue Collar",
+    html: `<p>${actor.name} invited you to join ${role === "OWNER" ? "an" : "their"} organization on Blue Collar.</p><p><a href="${inviteLink}">Set your password to get started</a></p><p>This link expires in 7 days.</p>`,
   });
 
   await logActivity({
     organizationId: actor.organizationId,
     actorUserId: actor.id,
     action: "user.created",
-    summary: `${actor.name} added ${user.name} as ${role}`,
+    summary: `${actor.name} invited ${user.name} as ${role}`,
   });
 
   revalidatePath("/users");
-  redirect("/users");
+  return sent ? {} : { inviteLink };
 }
 
 export async function setUserActive(userId: string, active: boolean) {
