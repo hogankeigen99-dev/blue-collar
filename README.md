@@ -3,6 +3,10 @@
 A multi-tenant platform for trades businesses to run leads, estimates,
 projects, crews, and scheduling in one place.
 
+New screens and significant feature work go through a spec first — see
+[`docs/PRODUCT_PROCESS.md`](docs/PRODUCT_PROCESS.md) (Figma → PRD → Issue →
+Code → QA) and the "Feature (with PRD)" issue template.
+
 ## Stack
 
 - [Next.js 16](https://nextjs.org/) (App Router, Server Actions)
