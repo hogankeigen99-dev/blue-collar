@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getObjectUrl } from "@/lib/storage";
 import { uploadAttachment, deleteAttachment } from "@/lib/actions/attachments";
 
 export default async function ProjectFilesPage({
@@ -20,6 +21,10 @@ export default async function ProjectFilesPage({
     orderBy: { createdAt: "desc" },
     include: { uploadedBy: true },
   });
+
+  const withUrls = await Promise.all(
+    attachments.map(async (a) => ({ ...a, url: await getObjectUrl(a.storagePath) }))
+  );
 
   async function upload(formData: FormData) {
     "use server";
@@ -41,22 +46,22 @@ export default async function ProjectFilesPage({
         </button>
       </form>
 
-      {attachments.length === 0 ? (
+      {withUrls.length === 0 ? (
         <p className="text-slate-500 text-sm">No files yet.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {attachments.map((a) => (
+          {withUrls.map((a) => (
             <div key={a.id} className="bg-white border rounded-lg p-3 space-y-2">
               {a.kind === "PHOTO" ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={a.storagePath}
+                  src={a.url}
                   alt={a.filename}
                   className="w-full h-32 object-cover rounded-md"
                 />
               ) : (
                 <a
-                  href={a.storagePath}
+                  href={a.url}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-center h-32 rounded-md bg-slate-50 text-slate-400 text-xs"
