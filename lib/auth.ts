@@ -1,26 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { randomBytes, createHash } from "crypto";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/constants";
 import type { Role, User } from "@prisma/client";
 
+import { ROLE_ORDER, roleAtLeast, hashPassword, verifyPassword } from "@/lib/auth-core";
+export { ROLE_ORDER, roleAtLeast, hashPassword, verifyPassword };
+
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-
-export const ROLE_ORDER: Role[] = ["TECHNICIAN", "MANAGER", "ADMIN", "OWNER"];
-
-export function roleAtLeast(role: Role, min: Role): boolean {
-  return ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(min);
-}
-
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
-}
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");

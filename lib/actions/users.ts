@@ -2,25 +2,16 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireRole, hashPassword, ROLE_ORDER } from "@/lib/auth";
+import { parseForm } from "@/lib/validation";
+import { createUserSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Role } from "@prisma/client";
 
 export async function createUser(formData: FormData) {
   const actor = await requireRole("ADMIN");
+  const { name, email, password, role } = parseForm(createUserSchema, formData);
 
-  const name = String(formData.get("name") || "").trim();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
-  const role = String(formData.get("role") || "TECHNICIAN") as Role;
-
-  if (!name || !email || password.length < 8) {
-    throw new Error("Name, email, and an 8+ character password are required");
-  }
-  if (!ROLE_ORDER.includes(role)) {
-    throw new Error("Invalid role");
-  }
   if (ROLE_ORDER.indexOf(role) > ROLE_ORDER.indexOf(actor.role)) {
     throw new Error("You cannot grant a role higher than your own");
   }

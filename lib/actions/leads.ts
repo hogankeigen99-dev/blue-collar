@@ -2,30 +2,18 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseForm, parseValue } from "@/lib/validation";
+import { createLeadSchema, leadStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-function str(formData: FormData, key: string): string | undefined {
-  const v = formData.get(key);
-  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
-}
-
 export async function createLead(formData: FormData) {
   const user = await requireUser();
-  const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  const data = parseForm(createLeadSchema, formData);
 
   const lead = await prisma.lead.create({
-    data: {
-      organizationId: user.organizationId,
-      name,
-      contactName: str(formData, "contactName"),
-      phone: str(formData, "phone"),
-      email: str(formData, "email"),
-      source: str(formData, "source"),
-      notes: str(formData, "notes"),
-    },
+    data: { organizationId: user.organizationId, ...data },
   });
 
   await logActivity({
@@ -41,15 +29,14 @@ export async function createLead(formData: FormData) {
 
 export async function updateLeadStatus(leadId: string, formData: FormData) {
   const user = await requireUser();
-  const status = formData.get("status");
-  if (typeof status !== "string") return;
+  const status = parseValue(leadStatusSchema, formData.get("status"));
 
   const lead = await prisma.lead.findFirst({
     where: { id: leadId, organizationId: user.organizationId },
   });
   if (!lead) throw new Error("Lead not found");
 
-  await prisma.lead.update({ where: { id: leadId }, data: { status: status as never } });
+  await prisma.lead.update({ where: { id: leadId }, data: { status } });
 
   await logActivity({
     organizationId: user.organizationId,

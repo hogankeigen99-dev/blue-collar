@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseForm } from "@/lib/validation";
+import { addMemberSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
@@ -12,9 +14,7 @@ export async function addProjectMember(projectId: string, formData: FormData) {
   });
   if (!project) throw new Error("Project not found");
 
-  const userId = String(formData.get("userId") || "");
-  const role = String(formData.get("role") || "MEMBER") as "LEAD" | "MEMBER";
-  if (!userId) throw new Error("Select a user");
+  const { userId, role } = parseForm(addMemberSchema, formData);
 
   const member = await prisma.user.findFirst({
     where: { id: userId, organizationId: user.organizationId },
