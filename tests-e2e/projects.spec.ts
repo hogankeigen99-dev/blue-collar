@@ -34,3 +34,33 @@ test("create a project, add a task, and mark it done", async ({ page }) => {
   await statusSelect.selectOption("DONE");
   await expect(statusSelect).toHaveValue("DONE");
 });
+
+test("flagging a project at risk surfaces it on the project page, the projects list, and the dashboard", async ({ page }) => {
+  const id = unique();
+  await signUp(page, id);
+
+  await page.goto("/projects/new");
+  await field(page, "title").fill(`At Risk Project ${id}`);
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect(page.getByRole("heading", { name: `At Risk Project ${id}` })).toBeVisible();
+
+  // badges are ".rounded-full" spans — scoping past the health <select>'s own
+  // "At risk" <option> text, which getByText would otherwise also match
+  const riskBadge = page.locator("span.rounded-full", { hasText: "At risk" });
+  await expect(riskBadge).toHaveCount(0);
+
+  await field(page, "health").selectOption("AT_RISK");
+  await field(page, "healthNote").fill("Permit delayed");
+  await page.locator('form:has(select[name="health"]) button[type="submit"]').click();
+
+  await expect(riskBadge.first()).toBeVisible();
+  await expect(page.getByText("Permit delayed")).toBeVisible();
+
+  await page.goto("/projects");
+  await expect(
+    page.locator("a", { hasText: `At Risk Project ${id}` }).locator("span.rounded-full", { hasText: "At risk" })
+  ).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByText("project flagged at risk")).toBeVisible();
+});

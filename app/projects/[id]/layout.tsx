@@ -11,6 +11,11 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
+const HEALTH_BADGE: Record<string, { label: string; className: string }> = {
+  ON_TRACK: { label: "On track", className: "bg-green-50 text-green-700" },
+  AT_RISK: { label: "At risk", className: "bg-red-50 text-red-700" },
+};
+
 const TABS = [
   { href: "", label: "Overview" },
   { href: "/tasks", label: "Tasks" },
@@ -49,9 +54,16 @@ export default async function ProjectLayout({
               <p className="text-slate-500 text-sm mt-1">For {project.customer.name}</p>
             )}
           </div>
-          <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-            {STATUS_LABEL[project.status]}
-          </span>
+          <div className="flex items-center gap-2">
+            {project.health === "AT_RISK" && (
+              <span className={`text-xs px-2 py-1 rounded-full ${HEALTH_BADGE.AT_RISK.className}`}>
+                {HEALTH_BADGE.AT_RISK.label}
+              </span>
+            )}
+            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+              {STATUS_LABEL[project.status]}
+            </span>
+          </div>
         </div>
       </div>
 

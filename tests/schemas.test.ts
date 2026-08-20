@@ -9,6 +9,7 @@ import {
   createUserSchema,
   requestPasswordResetSchema,
   setPasswordSchema,
+  updateProjectHealthSchema,
 } from "@/lib/schemas";
 
 describe("signUpSchema", () => {
@@ -231,5 +232,23 @@ describe("setPasswordSchema", () => {
       confirmPassword: "password123",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("updateProjectHealthSchema", () => {
+  it("accepts ON_TRACK and AT_RISK with an optional note", () => {
+    expect(updateProjectHealthSchema.safeParse({ health: "ON_TRACK" }).success).toBe(true);
+    expect(
+      updateProjectHealthSchema.safeParse({ health: "AT_RISK", healthNote: "Delivery delayed" }).success
+    ).toBe(true);
+  });
+
+  it("rejects an invalid health value", () => {
+    expect(updateProjectHealthSchema.safeParse({ health: "ON_FIRE" }).success).toBe(false);
+  });
+
+  it("treats an empty note as undefined", () => {
+    const parsed = updateProjectHealthSchema.parse({ health: "AT_RISK", healthNote: "" });
+    expect(parsed.healthNote).toBeUndefined();
   });
 });

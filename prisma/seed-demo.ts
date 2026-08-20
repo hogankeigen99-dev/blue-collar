@@ -313,6 +313,8 @@ async function main() {
         title,
         description: `${title} for ${customer.name}.`,
         status: plan.status,
+        health: plan.overdue ? "AT_RISK" : "ON_TRACK",
+        healthNote: plan.overdue ? "Behind schedule — see overdue tasks." : undefined,
         address: randomAddress(),
         scheduledAt,
         createdAt,

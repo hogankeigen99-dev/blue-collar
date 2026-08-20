@@ -24,6 +24,11 @@ enum ProjectStatus {
   CANCELLED
 }
 
+enum ProjectHealth {
+  ON_TRACK
+  AT_RISK
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -140,6 +145,8 @@ model Project {
   title          String
   description    String?
   status         ProjectStatus @default(SCHEDULED)
+  health         ProjectHealth @default(ON_TRACK)
+  healthNote     String?
   address        String?
   scheduledAt    DateTime?
   createdAt      DateTime      @default(now())

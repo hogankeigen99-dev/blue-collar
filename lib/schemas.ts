@@ -45,6 +45,12 @@ export const createCustomerSchema = z.object({
 export const PROJECT_STATUSES = ["SCHEDULED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"] as const;
 export const projectStatusSchema = z.enum(PROJECT_STATUSES);
 
+export const PROJECT_HEALTHS = ["ON_TRACK", "AT_RISK"] as const;
+export const updateProjectHealthSchema = z.object({
+  health: z.enum(PROJECT_HEALTHS),
+  healthNote: optionalText(500),
+});
+
 export const createProjectSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
   description: optionalText(4000),
