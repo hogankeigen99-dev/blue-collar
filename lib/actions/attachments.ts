@@ -1,14 +1,12 @@
 "use server";
 
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { uploadObject, deleteObject } from "@/lib/storage";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 
-const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 // Extension allowlist keyed by MIME type — deliberately excludes svg/html/js
@@ -51,15 +49,10 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
     );
   }
 
-  const orgDir = path.join(UPLOAD_ROOT, user.organizationId, projectId);
-  await mkdir(orgDir, { recursive: true });
-
-  const storedName = `${randomUUID()}${ext}`;
-  const diskPath = path.join(orgDir, storedName);
+  const key = `${user.organizationId}/${projectId}/${randomUUID()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(diskPath, buffer);
+  await uploadObject(key, buffer, file.type);
 
-  const publicPath = `/uploads/${user.organizationId}/${projectId}/${storedName}`;
   const kind = file.type.startsWith("image/") ? "PHOTO" : "DOCUMENT";
 
   await prisma.attachment.create({
@@ -68,7 +61,7 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
       projectId,
       uploadedByUserId: user.id,
       filename: file.name.slice(0, 255),
-      storagePath: publicPath,
+      storagePath: key,
       contentType: file.type,
       size: file.size,
       kind,
@@ -93,6 +86,7 @@ export async function deleteAttachment(attachmentId: string) {
   });
   if (!attachment) throw new Error("File not found");
 
+  await deleteObject(attachment.storagePath);
   await prisma.attachment.delete({ where: { id: attachmentId } });
   if (attachment.projectId) {
     revalidatePath(`/projects/${attachment.projectId}/files`);
