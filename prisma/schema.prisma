@@ -10,8 +10,10 @@ datasource db {
 enum Role {
   OWNER
   ADMIN
-  MANAGER
-  TECHNICIAN
+  EXECUTIVE
+  SALES
+  PROJECT_MANAGER
+  FIELD_TECH
 }
 
 enum ProjectStatus {
@@ -20,6 +22,11 @@ enum ProjectStatus {
   ON_HOLD
   COMPLETED
   CANCELLED
+}
+
+enum ProjectHealth {
+  ON_TRACK
+  AT_RISK
 }
 
 enum TaskStatus {
@@ -81,7 +88,7 @@ model User {
   email          String   @unique
   passwordHash   String
   name           String
-  role           Role     @default(TECHNICIAN)
+  role           Role     @default(FIELD_TECH)
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
 
@@ -138,6 +145,8 @@ model Project {
   title          String
   description    String?
   status         ProjectStatus @default(SCHEDULED)
+  health         ProjectHealth @default(ON_TRACK)
+  healthNote     String?
   address        String?
   scheduledAt    DateTime?
   createdAt      DateTime      @default(now())

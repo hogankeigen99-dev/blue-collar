@@ -156,7 +156,7 @@ async function main() {
   const org = await prisma.organization.create({ data: { name: ORG_NAME, slug: ORG_SLUG } });
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
-  // ---------- users: 1 owner, 1 admin, 5 PMs, 8 sales reps, 15 field crew (all role=MANAGER/TECHNICIAN — the schema has no dedicated title field) ----------
+  // ---------- users: 1 owner, 1 admin, 5 PMs, 8 sales reps, 15 field crew ----------
 
   const usedEmails = new Set<string>();
   function makeUser(name: string, role: Role) {
@@ -174,9 +174,9 @@ async function main() {
   usedEmails.add(ownerSpec.email);
 
   const adminSpec = makeUser(randomPersonName(), "ADMIN");
-  const pmSpecs = Array.from({ length: 5 }, () => makeUser(randomPersonName(), "MANAGER"));
-  const salesSpecs = Array.from({ length: 8 }, () => makeUser(randomPersonName(), "MANAGER"));
-  const fieldSpecs = Array.from({ length: 15 }, () => makeUser(randomPersonName(), "TECHNICIAN"));
+  const pmSpecs = Array.from({ length: 5 }, () => makeUser(randomPersonName(), "PROJECT_MANAGER"));
+  const salesSpecs = Array.from({ length: 8 }, () => makeUser(randomPersonName(), "SALES"));
+  const fieldSpecs = Array.from({ length: 15 }, () => makeUser(randomPersonName(), "FIELD_TECH"));
 
   const allSpecs = [ownerSpec, adminSpec, ...pmSpecs, ...salesSpecs, ...fieldSpecs];
   const createdUsers = [];
@@ -313,6 +313,8 @@ async function main() {
         title,
         description: `${title} for ${customer.name}.`,
         status: plan.status,
+        health: plan.overdue ? "AT_RISK" : "ON_TRACK",
+        healthNote: plan.overdue ? "Behind schedule — see overdue tasks." : undefined,
         address: randomAddress(),
         scheduledAt,
         createdAt,

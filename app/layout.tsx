@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import { getCurrentUser, roleAtLeast } from "@/lib/auth";
+import { getCurrentUser, hasCapability, ROLE_LABELS } from "@/lib/auth";
 import { logOut } from "@/lib/actions/auth";
 
 export const metadata: Metadata = {
@@ -41,24 +41,24 @@ export default async function RootLayout({
                 <Link href="/customers" className="text-sm text-slate-600 hover:text-slate-900">
                   Customers
                 </Link>
-                {user.role === "TECHNICIAN" && (
+                {user.role === "FIELD_TECH" && (
                   <Link href="/field" className="text-sm text-slate-600 hover:text-slate-900">
                     My Field View
                   </Link>
                 )}
-                {roleAtLeast(user.role, "ADMIN") && (
-                  <>
-                    <Link href="/users" className="text-sm text-slate-600 hover:text-slate-900">
-                      Users
-                    </Link>
-                    <Link href="/activity" className="text-sm text-slate-600 hover:text-slate-900">
-                      Activity
-                    </Link>
-                  </>
+                {hasCapability(user.role, "manage_users") && (
+                  <Link href="/users" className="text-sm text-slate-600 hover:text-slate-900">
+                    Users
+                  </Link>
+                )}
+                {hasCapability(user.role, "view_org_activity") && (
+                  <Link href="/activity" className="text-sm text-slate-600 hover:text-slate-900">
+                    Activity
+                  </Link>
                 )}
                 <div className="ml-auto flex items-center gap-3">
                   <span className="text-sm text-slate-500">
-                    {user.name} · <span className="uppercase text-xs">{user.role}</span>
+                    {user.name} · <span className="text-xs">{ROLE_LABELS[user.role]}</span>
                   </span>
                   <form action={logOut}>
                     <button type="submit" className="text-sm text-slate-600 hover:text-slate-900">

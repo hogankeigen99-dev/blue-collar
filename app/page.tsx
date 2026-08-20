@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const orgId = user.organizationId;
 
-  const [projects, userCount, customerCount, openLeads, counts] = await Promise.all([
+  const [projects, userCount, customerCount, openLeads, counts, atRiskCount] = await Promise.all([
     prisma.project.findMany({
       where: { organizationId: orgId },
       orderBy: { scheduledAt: "asc" },
@@ -32,6 +32,9 @@ export default async function DashboardPage() {
       by: ["status"],
       where: { organizationId: orgId },
       _count: true,
+    }),
+    prisma.project.count({
+      where: { organizationId: orgId, health: "AT_RISK", status: { notIn: ["COMPLETED", "CANCELLED"] } },
     }),
   ]);
 
@@ -54,6 +57,18 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {atRiskCount > 0 && (
+        <Link
+          href="/projects"
+          className="block bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100"
+        >
+          <div className="text-2xl font-semibold text-red-700">{atRiskCount}</div>
+          <div className="text-sm text-red-700">
+            {atRiskCount === 1 ? "project" : "projects"} flagged at risk — click to review
+          </div>
+        </Link>
+      )}
 
       <div className="flex gap-4 text-sm text-slate-600">
         <span>{userCount} active users</span>
@@ -96,9 +111,16 @@ export default async function DashboardPage() {
                       ` · ${project.members.map((m) => m.user.name).join(", ")}`}
                   </div>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                  {STATUS_LABEL[project.status]}
-                </span>
+                <div className="flex items-center gap-2">
+                  {project.health === "AT_RISK" && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700">
+                      At risk
+                    </span>
+                  )}
+                  <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                    {STATUS_LABEL[project.status]}
+                  </span>
+                </div>
               </Link>
             ))}
           </div>

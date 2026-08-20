@@ -16,7 +16,7 @@ export const logInSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   email: z.string().trim().toLowerCase().email("Enter a valid email address").max(255),
-  role: z.enum(["OWNER", "ADMIN", "MANAGER", "TECHNICIAN"]),
+  role: z.enum(["OWNER", "ADMIN", "EXECUTIVE", "SALES", "PROJECT_MANAGER", "FIELD_TECH"]),
 });
 
 export const requestPasswordResetSchema = z.object({
@@ -44,6 +44,12 @@ export const createCustomerSchema = z.object({
 
 export const PROJECT_STATUSES = ["SCHEDULED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"] as const;
 export const projectStatusSchema = z.enum(PROJECT_STATUSES);
+
+export const PROJECT_HEALTHS = ["ON_TRACK", "AT_RISK"] as const;
+export const updateProjectHealthSchema = z.object({
+  health: z.enum(PROJECT_HEALTHS),
+  healthNote: optionalText(500),
+});
 
 export const createProjectSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),

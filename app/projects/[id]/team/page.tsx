@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireUser, ROLE_LABELS } from "@/lib/auth";
 import { addProjectMember, removeProjectMember } from "@/lib/actions/project-members";
 
 export default async function ProjectTeamPage({
@@ -44,7 +44,7 @@ export default async function ProjectTeamPage({
             <select name="userId" required className="w-full border rounded-md px-3 py-2 text-sm">
               {available.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name} ({u.role})
+                  {u.name} ({ROLE_LABELS[u.role]})
                 </option>
               ))}
             </select>
@@ -74,7 +74,7 @@ export default async function ProjectTeamPage({
               <div>
                 <div className="font-medium">{m.user.name}</div>
                 <div className="text-sm text-slate-500">
-                  {m.user.role} · <span className="uppercase text-xs">{m.role}</span> on this project
+                  {ROLE_LABELS[m.user.role]} · <span className="uppercase text-xs">{m.role}</span> on this project
                 </div>
               </div>
               <form action={removeProjectMember.bind(null, id, m.userId)}>

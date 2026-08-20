@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createUser, type CreateUserState } from "@/lib/actions/users";
+import { ROLE_LABELS } from "@/lib/auth-core";
 import type { Role } from "@prisma/client";
 
 const initialState: CreateUserState = {};
@@ -48,10 +49,10 @@ export function NewUserForm({ assignableRoles }: { assignableRoles: Role[] }) {
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Role</label>
-        <select name="role" defaultValue="TECHNICIAN" className="w-full border rounded-md px-3 py-2 text-sm">
+        <select name="role" defaultValue="FIELD_TECH" className="w-full border rounded-md px-3 py-2 text-sm">
           {assignableRoles.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {ROLE_LABELS[r]}
             </option>
           ))}
         </select>

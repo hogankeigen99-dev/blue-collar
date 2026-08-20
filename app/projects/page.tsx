@@ -50,9 +50,16 @@ export default async function ProjectsPage() {
                     ` · ${project.members.map((m) => m.user.name).join(", ")}`}
                 </div>
               </div>
-              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                {STATUS_LABEL[project.status]}
-              </span>
+              <div className="flex items-center gap-2">
+                {project.health === "AT_RISK" && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700">
+                    At risk
+                  </span>
+                )}
+                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                  {STATUS_LABEL[project.status]}
+                </span>
+              </div>
             </Link>
           ))}
         </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { parseForm, parseValue } from "@/lib/validation";
 import { createEstimateSchema, addLineItemSchema, estimateStatusSchema } from "@/lib/schemas";
 import { logActivity } from "@/lib/activity";
@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createEstimate(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const data = parseForm(createEstimateSchema, formData);
 
   const estimate = await prisma.estimate.create({
@@ -28,7 +28,7 @@ export async function createEstimate(formData: FormData) {
 }
 
 export async function createEstimateFromLead(leadId: string) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const lead = await prisma.lead.findFirst({
     where: { id: leadId, organizationId: user.organizationId },
   });
@@ -55,7 +55,7 @@ export async function createEstimateFromLead(leadId: string) {
 }
 
 export async function addLineItem(estimateId: string, formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const estimate = await prisma.estimate.findFirst({
     where: { id: estimateId, organizationId: user.organizationId },
   });
@@ -82,7 +82,7 @@ export async function addLineItem(estimateId: string, formData: FormData) {
 }
 
 export async function removeLineItem(estimateId: string, lineItemId: string) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const estimate = await prisma.estimate.findFirst({
     where: { id: estimateId, organizationId: user.organizationId },
   });
@@ -98,7 +98,7 @@ export async function removeLineItem(estimateId: string, lineItemId: string) {
 }
 
 export async function updateEstimateStatus(estimateId: string, formData: FormData) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const status = parseValue(estimateStatusSchema, formData.get("status"));
 
   const estimate = await prisma.estimate.findFirst({
@@ -120,7 +120,7 @@ export async function updateEstimateStatus(estimateId: string, formData: FormDat
 }
 
 export async function convertEstimateToProject(estimateId: string) {
-  const user = await requireUser();
+  const user = await requireCapability("manage_pipeline");
   const estimate = await prisma.estimate.findFirst({
     where: { id: estimateId, organizationId: user.organizationId },
   });

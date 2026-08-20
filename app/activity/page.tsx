@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrgActivityPage() {
-  const user = await requireRole("ADMIN");
+  const user = await requireCapability("view_org_activity");
 
   const entries = await prisma.activityLog.findMany({
     where: { organizationId: user.organizationId },

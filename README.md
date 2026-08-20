@@ -21,9 +21,12 @@ Code → QA) and the "Feature (with PRD)" issue template.
   data is scoped to it
 - **Auth**: sign up creates an organization + its first `OWNER` user; sign in
   / sign out
-- **Users & roles**: `OWNER > ADMIN > MANAGER > TECHNICIAN` hierarchy. Admins+
-  invite users by email; invitees set their own password via a signed,
-  expiring link. Self-service "forgot password" too
+- **Users & roles**: `OWNER`, `ADMIN`, `EXECUTIVE`, `SALES`, `PROJECT_MANAGER`,
+  `FIELD_TECH` — a capability-based permission model (`lib/auth-core.ts`)
+  rather than a single hierarchy, since Sales and PM are peers with
+  different jobs, not one above the other. `OWNER`/`ADMIN` invite users by
+  email; invitees set their own password via a signed, expiring link.
+  Self-service "forgot password" too
 - **Projects**: a command center per project — Overview, Tasks, Team,
   Schedule, Files, and Activity tabs
 - **Tasks**: per-project to-dos with an assignee, due date, and status

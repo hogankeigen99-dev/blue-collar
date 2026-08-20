@@ -9,6 +9,7 @@ import {
   createUserSchema,
   requestPasswordResetSchema,
   setPasswordSchema,
+  updateProjectHealthSchema,
 } from "@/lib/schemas";
 
 describe("signUpSchema", () => {
@@ -152,7 +153,7 @@ describe("createUserSchema", () => {
     const result = createUserSchema.safeParse({
       name: "Alice",
       email: "alice@example.com",
-      role: "TECHNICIAN",
+      role: "FIELD_TECH",
     });
     expect(result.success).toBe(true);
   });
@@ -164,6 +165,23 @@ describe("createUserSchema", () => {
       role: "SUPERADMIN",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects the retired MANAGER/TECHNICIAN role names", () => {
+    expect(
+      createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role: "MANAGER" }).success
+    ).toBe(false);
+    expect(
+      createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role: "TECHNICIAN" }).success
+    ).toBe(false);
+  });
+
+  it("accepts every current role", () => {
+    for (const role of ["OWNER", "ADMIN", "EXECUTIVE", "SALES", "PROJECT_MANAGER", "FIELD_TECH"]) {
+      expect(
+        createUserSchema.safeParse({ name: "Alice", email: "alice@example.com", role }).success
+      ).toBe(true);
+    }
   });
 });
 
@@ -214,5 +232,23 @@ describe("setPasswordSchema", () => {
       confirmPassword: "password123",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("updateProjectHealthSchema", () => {
+  it("accepts ON_TRACK and AT_RISK with an optional note", () => {
+    expect(updateProjectHealthSchema.safeParse({ health: "ON_TRACK" }).success).toBe(true);
+    expect(
+      updateProjectHealthSchema.safeParse({ health: "AT_RISK", healthNote: "Delivery delayed" }).success
+    ).toBe(true);
+  });
+
+  it("rejects an invalid health value", () => {
+    expect(updateProjectHealthSchema.safeParse({ health: "ON_FIRE" }).success).toBe(false);
+  });
+
+  it("treats an empty note as undefined", () => {
+    const parsed = updateProjectHealthSchema.parse({ health: "AT_RISK", healthNote: "" });
+    expect(parsed.healthNote).toBeUndefined();
   });
 });

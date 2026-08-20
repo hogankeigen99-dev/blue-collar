@@ -26,7 +26,7 @@ async function main() {
       name: "Alice Johnson",
       email: "alice@riverside.test",
       passwordHash,
-      role: "TECHNICIAN",
+      role: "FIELD_TECH",
     },
   });
 
@@ -36,7 +36,7 @@ async function main() {
       name: "Bob Martinez",
       email: "bob@riverside.test",
       passwordHash,
-      role: "TECHNICIAN",
+      role: "FIELD_TECH",
     },
   });
 

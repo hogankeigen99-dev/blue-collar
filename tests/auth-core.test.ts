@@ -1,24 +1,50 @@
 import { describe, it, expect } from "vitest";
-import { roleAtLeast, hashPassword, verifyPassword, ROLE_ORDER } from "@/lib/auth-core";
+import { hasCapability, assignableRoles, ALL_ROLES, hashPassword, verifyPassword } from "@/lib/auth-core";
 
-describe("roleAtLeast", () => {
-  it("orders roles TECHNICIAN < MANAGER < ADMIN < OWNER", () => {
-    expect(ROLE_ORDER).toEqual(["TECHNICIAN", "MANAGER", "ADMIN", "OWNER"]);
+describe("hasCapability", () => {
+  it("gives OWNER and ADMIN every capability", () => {
+    for (const capability of ["manage_users", "view_org_activity", "manage_projects", "manage_pipeline"] as const) {
+      expect(hasCapability("OWNER", capability)).toBe(true);
+      expect(hasCapability("ADMIN", capability)).toBe(true);
+    }
   });
 
-  it("allows a role to act on its own minimum", () => {
-    expect(roleAtLeast("MANAGER", "MANAGER")).toBe(true);
+  it("gives EXECUTIVE visibility but no write capabilities", () => {
+    expect(hasCapability("EXECUTIVE", "view_org_activity")).toBe(true);
+    expect(hasCapability("EXECUTIVE", "manage_users")).toBe(false);
+    expect(hasCapability("EXECUTIVE", "manage_projects")).toBe(false);
+    expect(hasCapability("EXECUTIVE", "manage_pipeline")).toBe(false);
   });
 
-  it("allows a higher role to act on a lower minimum", () => {
-    expect(roleAtLeast("OWNER", "TECHNICIAN")).toBe(true);
-    expect(roleAtLeast("ADMIN", "MANAGER")).toBe(true);
+  it("gives SALES the pipeline but not project management", () => {
+    expect(hasCapability("SALES", "manage_pipeline")).toBe(true);
+    expect(hasCapability("SALES", "manage_projects")).toBe(false);
+    expect(hasCapability("SALES", "manage_users")).toBe(false);
   });
 
-  it("denies a lower role acting on a higher minimum", () => {
-    expect(roleAtLeast("TECHNICIAN", "MANAGER")).toBe(false);
-    expect(roleAtLeast("MANAGER", "ADMIN")).toBe(false);
-    expect(roleAtLeast("ADMIN", "OWNER")).toBe(false);
+  it("gives PROJECT_MANAGER both projects and the pipeline", () => {
+    expect(hasCapability("PROJECT_MANAGER", "manage_projects")).toBe(true);
+    expect(hasCapability("PROJECT_MANAGER", "manage_pipeline")).toBe(true);
+    expect(hasCapability("PROJECT_MANAGER", "manage_users")).toBe(false);
+  });
+
+  it("gives FIELD_TECH no elevated capabilities", () => {
+    for (const capability of ["manage_users", "view_org_activity", "manage_projects", "manage_pipeline"] as const) {
+      expect(hasCapability("FIELD_TECH", capability)).toBe(false);
+    }
+  });
+});
+
+describe("assignableRoles", () => {
+  it("lets OWNER grant every role, including OWNER", () => {
+    expect(assignableRoles("OWNER")).toEqual(ALL_ROLES);
+    expect(assignableRoles("OWNER")).toContain("OWNER");
+  });
+
+  it("lets ADMIN grant every role except OWNER", () => {
+    const roles = assignableRoles("ADMIN");
+    expect(roles).not.toContain("OWNER");
+    expect(roles).toEqual(ALL_ROLES.filter((r) => r !== "OWNER"));
   });
 });
 
